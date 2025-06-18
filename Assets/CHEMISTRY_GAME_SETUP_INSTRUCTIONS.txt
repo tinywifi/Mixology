@@ -1,0 +1,41 @@
+CHEMISTRY GAME SETUP INSTRUCTIONS
+
+1. RUN INITIAL SETUP:
+   - Select this ChemistryGameSetup object
+   - Right-click → 'Complete Chemistry Game Setup'
+   - This will create all necessary assets and prefabs
+
+2. SETUP CARDGAME-BOARD SCENE:
+   - Open CardGame-Board scene
+   - Find CardManager GameObject
+   - Replace CardManager script with ChemistryCardManager
+   - Add ChemistryUISetup script to any object
+   - Right-click ChemistryUISetup → 'Setup Chemistry UI'
+   - Link references in ChemistryCardManager:
+     * Chemistry Database (from Assets/ScriptableObjects/)
+     * Element Card Prefab (from Assets/Prefabs/Chemistry/)
+     * Compound Card Prefab (from Assets/Prefabs/Chemistry/)
+     * UI Parent objects created by ChemistryUISetup
+
+3. SETUP CARDGAME-LOBBY SCENE:
+   - Open CardGame-Lobby scene
+   - Add ChemistryLobbyManager script to appropriate object
+   - Link UI references and Chemistry Database
+   - Update title and description texts
+
+4. TEST THE GAME:
+   - Play CardGame-Lobby scene
+   - Check that elements and compounds display correctly
+   - Verify compound creation works
+   - Test win condition (8 compounds)
+
+5. NETWORKING (Optional):
+   - The game is built on existing Photon networking
+   - Extend ChemistryCardManager for multiplayer if needed
+   - Add network events for compound creation and reactions
+
+TROUBLESHOOTING:
+- If prefabs are missing, re-run 'Complete Chemistry Game Setup'
+- If elements don't display, check Chemistry Database is populated
+- If UI is broken, re-run ChemistryUISetup
+- Check console for specific error messages

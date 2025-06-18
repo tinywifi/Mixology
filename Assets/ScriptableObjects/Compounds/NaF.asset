@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 992c2c43696d736468f790644299c7f6, type: 3}
+  m_Name: NaF
+  m_EditorClassIdentifier: 
+  compoundName: Sodium Fluoride
+  formula: NaF
+  cardSprite: {fileID: 0}
+  requiredElements:
+  - element: {fileID: 11400000, guid: eeb2c67e075e88a42af02d028524618d, type: 2}
+    quantity: 1
+  - element: {fileID: 11400000, guid: e5004c6875b494c49853298dd4821c29, type: 2}
+    quantity: 1
+  effect: 4
+  effectValue: 4
+  isOncePerTurn: 1
+  isTemporary: 0
+  protectsFromWaterReactions: 0
+  isMetallicCompound: 0
