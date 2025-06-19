@@ -26,3 +26,6 @@ MonoBehaviour:
   isTemporary: 0
   protectsFromWaterReactions: 0
   isMetallicCompound: 0
+  isMetalHydrideCompound: 0
+  isHydrocarbonCompound: 0
+  isNetworkSolidCompound: 0

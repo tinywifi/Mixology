@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 992c2c43696d736468f790644299c7f6, type: 3}
   m_Name: CH4
   m_EditorClassIdentifier: 
-  compoundName: Hydrocarbon
+  compoundName: Methane
   formula: CH4
   cardSprite: {fileID: 0}
   requiredElements:
@@ -26,3 +26,6 @@ MonoBehaviour:
   isTemporary: 0
   protectsFromWaterReactions: 0
   isMetallicCompound: 0
+  isMetalHydrideCompound: 0
+  isHydrocarbonCompound: 0
+  isNetworkSolidCompound: 0

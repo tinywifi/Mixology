@@ -360,6 +360,8 @@ public class ChemistryGameSetup : MonoBehaviour
         GameObject compoundsPanel = compoundsScrollArea?.transform.Find("Content")?.gameObject;
         GameObject opponentCompoundsPanel = opponentCompoundsScrollArea?.transform.Find("Content")?.gameObject;
         GameObject createButton = GameObject.Find("CreateCompoundButton");
+        GameObject discardButton = GameObject.Find("DiscardButton");
+        Debug.Log($"DiscardButton found: {discardButton != null}");
         GameObject endTurnButton = GameObject.Find("EndTurnButton");
         GameObject cheatButton = GameObject.Find("CheatModeButton");
         GameObject cheatDisplay = GameObject.Find("CheatModeDisplay");
@@ -379,6 +381,11 @@ public class ChemistryGameSetup : MonoBehaviour
                 field.SetValue(manager, opponentCompoundsPanel.transform);
             else if (field.Name == "createCompoundButton" && createButton != null) 
                 field.SetValue(manager, createButton.GetComponent<Button>());
+            else if (field.Name == "discardButton" && discardButton != null) 
+            {
+                field.SetValue(manager, discardButton.GetComponent<Button>());
+                Debug.Log("✓ Discard button assigned to SimpleChemistryManager");
+            }
             else if (field.Name == "endTurnButton" && endTurnButton != null) 
                 field.SetValue(manager, endTurnButton.GetComponent<Button>());
             else if (field.Name == "cheatModeButton" && cheatButton != null) 

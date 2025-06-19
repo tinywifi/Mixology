@@ -21,6 +21,8 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
     [SerializeField] private Transform playerCompoundsParent;
     [SerializeField] private Transform opponentCompoundsParent;
     [SerializeField] private Button createCompoundButton;
+    [SerializeField] private Button discardButton;
+    [SerializeField] private Button activateEffectButton;
     [SerializeField] private Button endTurnButton;
     [SerializeField] private Button cheatModeButton;
     [SerializeField] private GameObject cheatModeDisplay;
@@ -35,10 +37,12 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
     private List<ElementData> opponentHand = new List<ElementData>();
     private List<CompoundData> opponentCompounds = new List<CompoundData>();
     private List<ElementCard> selectedElementCards = new List<ElementCard>();
+    private List<CompoundCard> selectedCompoundCards = new List<CompoundCard>();
     private int handLimit = 10;
     private int winCondition = 8;
     private bool isPlayerTurn = true;
     private bool cheatModeEnabled = false;
+    private bool hasDiscardedThisTurn = false;
     
     
     private bool waitingForTurnAck = false;
@@ -86,7 +90,9 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         }
         
         
-        SetupButtons();
+        SetupUI();
+        
+        StartCoroutine(DelayedButtonSetup());
         
         
         DealStartingHand();
@@ -173,6 +179,20 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
             createCompoundButton.onClick.AddListener(TryCreateCompound);
         }
         
+        if (discardButton)
+        {
+            discardButton.onClick.RemoveAllListeners();
+            discardButton.onClick.AddListener(TryDiscardElements);
+            Debug.Log("✓ Discard button found and connected to TryDiscardElements");
+        }
+        
+        if (activateEffectButton)
+        {
+            activateEffectButton.onClick.RemoveAllListeners();
+            activateEffectButton.onClick.AddListener(TryActivateEffect);
+            Debug.Log("✓ Activate Effect button found and connected to TryActivateEffect");
+        }
+        
         if (endTurnButton)
         {
             endTurnButton.onClick.RemoveAllListeners();
@@ -203,6 +223,88 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         UpdateCounters();
         UpdateButtonStates();
         UpdateTurnIndicator();
+    }
+    
+    private void SetupUI()
+    {
+        Debug.Log("Setting up UI...");
+        
+        QuickChemistryUISetup uiSetup = FindObjectOfType<QuickChemistryUISetup>();
+        if (uiSetup == null)
+        {
+            Debug.Log("Creating QuickChemistryUISetup...");
+            GameObject setupObj = new GameObject("ChemistryUISetup");
+            uiSetup = setupObj.AddComponent<QuickChemistryUISetup>();
+        }
+        
+        Canvas canvas = FindObjectOfType<Canvas>();
+        if (canvas != null)
+        {
+            var field = typeof(QuickChemistryUISetup).GetField("targetCanvas", 
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                field.SetValue(uiSetup, canvas);
+                Debug.Log("Canvas assigned to UI setup");
+            }
+        }
+        
+        Debug.Log("UI setup completed");
+        
+        UpdateCompoundConfigurations();
+    }
+    
+    private void UpdateCompoundConfigurations()
+    {
+        Debug.Log("Updating compound configurations...");
+        
+        if (chemistryDatabase != null)
+        {
+            foreach (var compound in chemistryDatabase.allCompounds)
+            {
+                if (compound.formula == "Metallic")
+                {
+                    compound.isMetallicCompound = true;
+                    compound.requiredElements.Clear();
+                    Debug.Log("✓ Updated Metallic compound configuration");
+                }
+                else if (compound.formula.Contains("Metal Hydride") || compound.compoundName.Contains("Metal Hydride"))
+                {
+                    compound.isMetalHydrideCompound = true;
+                    Debug.Log("✓ Updated Metal Hydride compound configuration");
+                }
+                else if (compound.formula.Contains("CH4") || compound.compoundName.Contains("Hydrocarbon"))
+                {
+                    compound.isHydrocarbonCompound = true;
+                    Debug.Log("✓ Updated Hydrocarbon compound configuration");
+                }
+                else if (compound.formula.Contains("Network") || compound.compoundName.Contains("Network"))
+                {
+                    compound.isNetworkSolidCompound = true;
+                    Debug.Log("✓ Updated Network Solid compound configuration");
+                }
+                else if (compound.formula.Contains("Metal Oxide") || compound.compoundName.Contains("Metal Oxide"))
+                {
+                    compound.isMetalOxideCompound = true;
+                    Debug.Log("✓ Updated Metal Oxide compound configuration");
+                }
+            }
+        }
+    }
+    
+    private IEnumerator DelayedButtonSetup()
+    {
+        yield return new WaitForSeconds(0.1f);
+        Debug.Log("Running delayed button setup...");
+        SetupButtons();
+        yield return new WaitForSeconds(0.1f);
+        AssignDynamicButtons();
+    }
+    
+    private void AssignDynamicButtons()
+    {
+        Debug.Log("Assigning dynamic buttons...");
+        AutoAssignMissingReferences();
     }
     
     private void UpdateHandDisplay()
@@ -264,6 +366,7 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
                 if (card != null)
                 {
                     card.Initialize(compound);
+                    card.OnCardClicked += OnCompoundCardClicked;
                 }
             }
         }
@@ -307,6 +410,29 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         
         if (createCompoundButton)
             createCompoundButton.interactable = canInteract && selectedElementCards.Count > 0;
+            
+        if (discardButton)
+        {
+            bool discardEnabled = canInteract && !hasDiscardedThisTurn && selectedElementCards.Count > 0;
+            discardButton.interactable = discardEnabled;
+            Debug.Log($"Discard button state: canInteract={canInteract}, hasDiscardedThisTurn={hasDiscardedThisTurn}, selectedCount={selectedElementCards.Count}, enabled={discardEnabled}");
+        }
+        else
+        {
+            Debug.LogWarning("Discard button is null! Not assigned in inspector.");
+        }
+        
+        Debug.Log("UpdateButtonStates: checking activate effect button...");
+        if (activateEffectButton)
+        {
+            bool activateEnabled = canInteract && selectedCompoundCards.Count > 0 && HasActivatableCompounds();
+            activateEffectButton.interactable = activateEnabled;
+            Debug.Log($"Activate Effect button state: canInteract={canInteract}, selectedCompounds={selectedCompoundCards.Count}, hasActivatable={HasActivatableCompounds()}, enabled={activateEnabled}");
+        }
+        else
+        {
+            Debug.LogWarning("Activate Effect button is null! Not assigned in inspector.");
+        }
             
         if (endTurnButton)
             endTurnButton.interactable = canInteract;
@@ -354,9 +480,22 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
             selectedElementCards.Remove(card);
         }
         
+        UpdateButtonStates();
+    }
+    
+    private void OnCompoundCardClicked(CompoundCard card)
+    {
+        if (card.IsSelected)
+        {
+            if (!selectedCompoundCards.Contains(card))
+                selectedCompoundCards.Add(card);
+        }
+        else
+        {
+            selectedCompoundCards.Remove(card);
+        }
         
-        if (createCompoundButton)
-            createCompoundButton.interactable = selectedElementCards.Count > 0;
+        UpdateButtonStates();
     }
     
     public void TryCreateCompound()
@@ -390,7 +529,6 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         {
             Debug.Log($"Checking compound {compound.formula}...");
             
-            
             if (compound.isMetallicCompound)
             {
                 Debug.Log($"Testing metallic compound: {compound.formula}");
@@ -399,13 +537,44 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
                     Debug.Log($"✓ Found matching metallic compound: {compound.formula}");
                     return compound;
                 }
-                else
+            }
+            else if (compound.isMetalHydrideCompound)
+            {
+                Debug.Log($"Testing metal hydride compound: {compound.formula}");
+                if (compound.CanCreateMetalHydrideFrom(elements))
                 {
-                    Debug.Log($"✗ Metallic compound {compound.formula} doesn't match");
+                    Debug.Log($"✓ Found matching metal hydride compound: {compound.formula}");
+                    return compound;
                 }
             }
-            
-            else if (!compound.isMetallicCompound && IsExactMatch(compound, elements))
+            else if (compound.isHydrocarbonCompound)
+            {
+                Debug.Log($"Testing hydrocarbon compound: {compound.formula}");
+                if (compound.CanCreateHydrocarbonFrom(elements))
+                {
+                    Debug.Log($"✓ Found matching hydrocarbon compound: {compound.formula}");
+                    return compound;
+                }
+            }
+            else if (compound.isNetworkSolidCompound)
+            {
+                Debug.Log($"Testing network solid compound: {compound.formula}");
+                if (compound.CanCreateNetworkSolidFrom(elements))
+                {
+                    Debug.Log($"✓ Found matching network solid compound: {compound.formula}");
+                    return compound;
+                }
+            }
+            else if (compound.isMetalOxideCompound)
+            {
+                Debug.Log($"Testing metal oxide compound: {compound.formula}");
+                if (compound.CanCreateMetalOxideFrom(elements))
+                {
+                    Debug.Log($"✓ Found matching metal oxide compound: {compound.formula}");
+                    return compound;
+                }
+            }
+            else if (IsExactMatch(compound, elements))
             {
                 Debug.Log($"✓ Found matching compound: {compound.formula}");
                 return compound;
@@ -459,6 +628,15 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
                 playerHand.Remove(element);
             }
         }
+        else if (compound.isMetalHydrideCompound || compound.isHydrocarbonCompound || 
+                 compound.isNetworkSolidCompound || compound.isMetalOxideCompound)
+        {
+            List<ElementData> elementsToRemove = GetSpecialCompoundElementsToRemove(compound, usedElements);
+            foreach (var element in elementsToRemove)
+            {
+                playerHand.Remove(element);
+            }
+        }
         else
         {
             
@@ -484,6 +662,11 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         
         
         UpdateUI();
+        
+        if (cheatModeEnabled)
+        {
+            AnalyzeHandCombinations();
+        }
         
         
         if (playerCompounds.Count >= winCondition)
@@ -526,6 +709,44 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         return selectedElements.Take(3).ToList();
     }
     
+    private List<ElementData> GetSpecialCompoundElementsToRemove(CompoundData compound, List<ElementData> selectedElements)
+    {
+        List<ElementData> elementsToRemove = new List<ElementData>();
+        
+        if (compound.isMetalHydrideCompound)
+        {
+            // Metal + Hydrogen
+            ElementData metal = selectedElements.FirstOrDefault(e => e.IsMetal() && e.oxidationNumber > 0);
+            ElementData hydrogen = selectedElements.FirstOrDefault(e => e.symbol == "H");
+            if (metal != null) elementsToRemove.Add(metal);
+            if (hydrogen != null) elementsToRemove.Add(hydrogen);
+        }
+        else if (compound.isHydrocarbonCompound)
+        {
+            // Carbon + 4 Hydrogens
+            ElementData carbon = selectedElements.FirstOrDefault(e => e.symbol == "C");
+            var hydrogens = selectedElements.Where(e => e.symbol == "H").Take(4);
+            if (carbon != null) elementsToRemove.Add(carbon);
+            elementsToRemove.AddRange(hydrogens);
+        }
+        else if (compound.isNetworkSolidCompound)
+        {
+            // 4 Carbons
+            var carbons = selectedElements.Where(e => e.symbol == "C").Take(4);
+            elementsToRemove.AddRange(carbons);
+        }
+        else if (compound.isMetalOxideCompound)
+        {
+            // Metal + Oxygen
+            ElementData metal = selectedElements.FirstOrDefault(e => e.IsMetal() && e.oxidationNumber > 0);
+            ElementData oxygen = selectedElements.FirstOrDefault(e => e.symbol == "O");
+            if (metal != null) elementsToRemove.Add(metal);
+            if (oxygen != null) elementsToRemove.Add(oxygen);
+        }
+        
+        return elementsToRemove;
+    }
+    
     private void ClearSelection()
     {
         foreach (var card in selectedElementCards)
@@ -536,6 +757,276 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         
         if (createCompoundButton)
             createCompoundButton.interactable = false;
+    }
+    
+    public void TryDiscardElements()
+    {
+        if (!isPlayerTurn || hasDiscardedThisTurn || selectedElementCards.Count == 0) return;
+        
+        Debug.Log($"Attempting to discard {selectedElementCards.Count} elements");
+        
+        int discardCount = selectedElementCards.Count;
+        List<ElementData> selectedElements = selectedElementCards.Select(c => c.Data).ToList();
+        
+        
+        foreach (var element in selectedElements)
+        {
+            playerHand.Remove(element);
+        }
+        
+        
+        for (int i = 0; i < discardCount; i++)
+        {
+            if (playerHand.Count < handLimit)
+            {
+                AddRandomElementToHand(true);
+            }
+        }
+        
+        
+        hasDiscardedThisTurn = true;
+        
+        
+        ClearSelection();
+        
+        
+        UpdateUI();
+        
+        if (cheatModeEnabled)
+        {
+            AnalyzeHandCombinations();
+        }
+        
+        if (statusText) statusText.text = $"Discarded {discardCount} elements and drew {discardCount} new ones!";
+        
+        Debug.Log($"Successfully discarded {discardCount} elements. Hand now has {playerHand.Count} elements.");
+        
+        
+        EndTurn();
+    }
+    
+    private bool HasActivatableCompounds()
+    {
+        Debug.Log($"HasActivatableCompounds: checking {selectedCompoundCards.Count} selected compounds");
+        foreach (var compoundCard in selectedCompoundCards)
+        {
+            Debug.Log($"Compound {compoundCard.Data.formula} has effect: {compoundCard.Data.effect}");
+            if (compoundCard.Data.effect != CompoundEffect.None)
+            {
+                Debug.Log("Found activatable compound!");
+                return true;
+            }
+        }
+        Debug.Log("No activatable compounds found");
+        return false;
+    }
+    
+    public void TryActivateEffect()
+    {
+        Debug.Log($"TryActivateEffect called! isPlayerTurn={isPlayerTurn}, selectedCompounds={selectedCompoundCards.Count}");
+        
+        if (!isPlayerTurn || selectedCompoundCards.Count == 0) 
+        {
+            Debug.Log("Early return: either not player turn or no compounds selected");
+            return;
+        }
+        
+        Debug.Log($"Attempting to activate effects on {selectedCompoundCards.Count} compounds");
+        
+        foreach (var compoundCard in selectedCompoundCards)
+        {
+            ActivateCompoundEffect(compoundCard.Data);
+        }
+        
+        ClearCompoundSelection();
+        UpdateUI();
+    }
+    
+    private void ActivateCompoundEffect(CompoundData compound)
+    {
+        Debug.Log($"Activating effect for compound: {compound.formula} - Effect: {compound.effect}");
+        
+        switch (compound.effect)
+        {
+            case CompoundEffect.DrawElements:
+                ActivateDrawElementsEffect(compound.effectValue);
+                break;
+            case CompoundEffect.SkipPlayerTurn:
+                ActivateSkipPlayerTurnEffect();
+                break;
+            case CompoundEffect.DiscardElements:
+                ActivateDiscardElementsEffect(compound.effectValue);
+                break;
+            case CompoundEffect.ReceiveElements:
+                ActivateReceiveElementsEffect(compound.effectValue);
+                break;
+            case CompoundEffect.NegateDissolusion:
+                ActivateNegateDissolusionEffect();
+                break;
+            case CompoundEffect.H2O_ChangeElements:
+                ActivateH2OEffect();
+                break;
+            case CompoundEffect.CO2_DestroyCompound:
+                ActivateCO2Effect();
+                break;
+            case CompoundEffect.Acid_SkipTurn:
+                ActivateAcidEffect();
+                break;
+            case CompoundEffect.Base_DiscardThree:
+                ActivateBaseEffect();
+                break;
+            case CompoundEffect.Salt_TakeElements:
+                ActivateSaltEffect();
+                break;
+            case CompoundEffect.Metallic_NegateDisso:
+                ActivateMetallicEffect();
+                break;
+            case CompoundEffect.MetalOxide_Protect:
+                ActivateMetalOxideEffect();
+                break;
+            case CompoundEffect.MetalHydride_Draw4:
+                ActivateMetalHydrideEffect();
+                break;
+            case CompoundEffect.Hydrocarbon_DiscardDraw:
+                ActivateHydrocarbonEffect();
+                break;
+            case CompoundEffect.NetworkSolid_Protection:
+                ActivateNetworkSolidEffect();
+                break;
+            default:
+                Debug.Log($"No specific effect implementation for {compound.effect}");
+                break;
+        }
+        
+        if (compound.isOncePerTurn)
+        {
+            playerCompounds.Remove(compound);
+            Debug.Log($"Consumed {compound.formula} after use");
+        }
+    }
+    
+    private void ActivateDrawElementsEffect(int count)
+    {
+        Debug.Log($"DrawElements Effect: Drawing {count} elements");
+        for (int i = 0; i < count; i++)
+        {
+            if (playerHand.Count < handLimit)
+                AddRandomElementToHand(true);
+        }
+        if (statusText) statusText.text = $"Drew {count} elements!";
+    }
+    
+    private void ActivateSkipPlayerTurnEffect()
+    {
+        Debug.Log("SkipPlayerTurn Effect: Opponent's turn will be skipped");
+        if (statusText) statusText.text = "Opponent's turn will be skipped!";
+    }
+    
+    private void ActivateDiscardElementsEffect(int count)
+    {
+        Debug.Log($"DiscardElements Effect: Opponent must discard {count} elements");
+        if (statusText) statusText.text = $"Opponent must discard {count} elements (not implemented in basic version)";
+    }
+    
+    private void ActivateReceiveElementsEffect(int count)
+    {
+        Debug.Log($"ReceiveElements Effect: Drawing {count} elements");
+        for (int i = 0; i < count; i++)
+        {
+            if (playerHand.Count < handLimit)
+                AddRandomElementToHand(true);
+        }
+        if (statusText) statusText.text = $"Drew {count} elements!";
+    }
+    
+    private void ActivateNegateDissolusionEffect()
+    {
+        Debug.Log("NegateDissolusion Effect: Protects from dissolution attacks");
+        if (statusText) statusText.text = "Protected from dissolution attacks!";
+    }
+    
+    private void ActivateH2OEffect()
+    {
+        Debug.Log("H2O Effect: Pick up to 2 elements and change them to any desired elements");
+        if (statusText) statusText.text = "H2O: Select up to 2 elements to transform (not implemented in basic version)";
+    }
+    
+    private void ActivateCO2Effect()
+    {
+        Debug.Log("CO2 Effect: Destroy a compound on any player's field");
+        if (statusText) statusText.text = "CO2: Would destroy opponent compound (not implemented in basic version)";
+    }
+    
+    private void ActivateAcidEffect()
+    {
+        Debug.Log("Acid Effect: Skip opponent's turn");
+        if (statusText) statusText.text = "Acid: Opponent's turn will be skipped!";
+    }
+    
+    private void ActivateBaseEffect()
+    {
+        Debug.Log("Base Effect: Target player discards 3 elements");
+        if (statusText) statusText.text = "Base: Opponent must discard 3 elements (not implemented in basic version)";
+    }
+    
+    private void ActivateSaltEffect()
+    {
+        Debug.Log("Salt Effect: Ask a player for 2 element cards");
+        for (int i = 0; i < 2; i++)
+        {
+            if (playerHand.Count < handLimit)
+                AddRandomElementToHand(true);
+        }
+        if (statusText) statusText.text = "Salt: Received 2 elements from opponent!";
+    }
+    
+    private void ActivateMetallicEffect()
+    {
+        Debug.Log("Metallic Effect: Negate dissociation and receive 2 elements");
+        AddRandomElementToHand(true);
+        AddRandomElementToHand(true);
+        if (statusText) statusText.text = "Metallic: Negated attack and drew 2 elements!";
+    }
+    
+    private void ActivateMetalOxideEffect()
+    {
+        Debug.Log("Metal Oxide Effect: Nullify H2O reactions until start of turn");
+        if (statusText) statusText.text = "Metal Oxide: Protected from water reactions until your next turn!";
+    }
+    
+    private void ActivateMetalHydrideEffect()
+    {
+        Debug.Log("Metal Hydride Effect: Receive 4 elements");
+        for (int i = 0; i < 4; i++)
+        {
+            if (playerHand.Count < handLimit)
+                AddRandomElementToHand(true);
+        }
+        if (statusText) statusText.text = "Metal Hydride: Drew 4 elements!";
+    }
+    
+    private void ActivateHydrocarbonEffect()
+    {
+        Debug.Log("Hydrocarbon Effect: Discard any elements and draw same amount");
+        if (statusText) statusText.text = "Hydrocarbon: Select elements to discard and redraw (basic: draw 2)";
+        AddRandomElementToHand(true);
+        AddRandomElementToHand(true);
+    }
+    
+    private void ActivateNetworkSolidEffect()
+    {
+        Debug.Log("Network Solid Effect: Cannot be targeted by other players");
+        if (statusText) statusText.text = "Network Solid: You are protected from targeting until your next turn!";
+    }
+    
+    private void ClearCompoundSelection()
+    {
+        foreach (var compoundCard in selectedCompoundCards)
+        {
+            if (compoundCard != null)
+                compoundCard.SetSelected(false);
+        }
+        selectedCompoundCards.Clear();
     }
     
     public void EndTurn()
@@ -551,6 +1042,7 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         Debug.Log($"EndTurn called by {(PhotonNetwork.IsMasterClient ? "Master" : "Client")} player");
         
         
+        hasDiscardedThisTurn = false;
         isPlayerTurn = false;
         
         
@@ -603,6 +1095,7 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
     {
         
         isPlayerTurn = true;
+        hasDiscardedThisTurn = false;
         
         
         DealElementsToPlayerNewRules(true);
@@ -767,6 +1260,11 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         
         ElementData randomElement = chemistryDatabase.allElements[Random.Range(0, chemistryDatabase.allElements.Count)];
         targetHand.Add(randomElement);
+        
+        if (isPlayer && cheatModeEnabled)
+        {
+            AnalyzeHandCombinations();
+        }
     }
     
     
@@ -881,6 +1379,36 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
                     Debug.Log("✓ Found and assigned CreateCompoundButton");
                     createCompoundButton.onClick.RemoveAllListeners();
                     createCompoundButton.onClick.AddListener(TryCreateCompound);
+                }
+            }
+        }
+        
+        if (discardButton == null)
+        {
+            GameObject discardButtonObj = GameObject.Find("DiscardButton");
+            if (discardButtonObj != null)
+            {
+                discardButton = discardButtonObj.GetComponent<Button>();
+                if (discardButton != null)
+                {
+                    Debug.Log("✓ Found and assigned DiscardButton");
+                    discardButton.onClick.RemoveAllListeners();
+                    discardButton.onClick.AddListener(TryDiscardElements);
+                }
+            }
+        }
+        
+        if (activateEffectButton == null)
+        {
+            GameObject activateButtonObj = GameObject.Find("ActivateEffectButton");
+            if (activateButtonObj != null)
+            {
+                activateEffectButton = activateButtonObj.GetComponent<Button>();
+                if (activateEffectButton != null)
+                {
+                    Debug.Log("✓ Found and assigned ActivateEffectButton");
+                    activateEffectButton.onClick.RemoveAllListeners();
+                    activateEffectButton.onClick.AddListener(TryActivateEffect);
                 }
             }
         }
@@ -1103,7 +1631,7 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         RectTransform cheatRect = cheatDisplay.AddComponent<RectTransform>();
         cheatRect.localScale = Vector3.one;
         cheatRect.anchorMin = new Vector2(0.05f, 0.15f);
-        cheatRect.anchorMax = new Vector2(0.35f, 0.45f);
+        cheatRect.anchorMax = new Vector2(0.45f, 0.55f);
         cheatRect.sizeDelta = Vector2.zero;
         cheatRect.anchoredPosition = Vector2.zero;
         
@@ -1311,12 +1839,12 @@ public class SimpleChemistryManager : MonoBehaviourPun, IOnEventCallback
         
         RectTransform rect = textObj.AddComponent<RectTransform>();
         rect.localScale = Vector3.one;
-        rect.sizeDelta = new Vector2(300, 30);
+        rect.sizeDelta = new Vector2(400, 25);
         
         Text textComponent = textObj.AddComponent<Text>();
         textComponent.text = text;
         textComponent.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        textComponent.fontSize = 14;
+        textComponent.fontSize = 18;
         textComponent.alignment = TextAnchor.MiddleLeft;
         textComponent.color = Color.green;
         textComponent.fontStyle = FontStyle.Bold;

@@ -119,15 +119,29 @@ public class QuickChemistryUISetup : MonoBehaviour
         
         GameObject createButton = CreateButton("CreateCompoundButton", mainPanel.transform, "Create Compound");
         RectTransform createRect = createButton.GetComponent<RectTransform>();
-        createRect.anchorMin = new Vector2(0.1f, 0.05f);
-        createRect.anchorMax = new Vector2(0.4f, 0.15f);
+        createRect.anchorMin = new Vector2(0.05f, 0.05f);
+        createRect.anchorMax = new Vector2(0.3f, 0.15f);
         createRect.sizeDelta = Vector2.zero;
         createRect.anchoredPosition = Vector2.zero;
         
+        GameObject discardButton = CreateButton("DiscardButton", mainPanel.transform, "Discard");
+        RectTransform discardRect = discardButton.GetComponent<RectTransform>();
+        discardRect.anchorMin = new Vector2(0.32f, 0.05f);
+        discardRect.anchorMax = new Vector2(0.48f, 0.15f);
+        discardRect.sizeDelta = Vector2.zero;
+        discardRect.anchoredPosition = Vector2.zero;
+        
+        GameObject activateButton = CreateButton("ActivateEffectButton", mainPanel.transform, "Activate Effect");
+        RectTransform activateRect = activateButton.GetComponent<RectTransform>();
+        activateRect.anchorMin = new Vector2(0.5f, 0.05f);
+        activateRect.anchorMax = new Vector2(0.68f, 0.15f);
+        activateRect.sizeDelta = Vector2.zero;
+        activateRect.anchoredPosition = Vector2.zero;
+        
         GameObject endTurnButton = CreateButton("EndTurnButton", mainPanel.transform, "End Turn");
         RectTransform endTurnRect = endTurnButton.GetComponent<RectTransform>();
-        endTurnRect.anchorMin = new Vector2(0.6f, 0.05f);
-        endTurnRect.anchorMax = new Vector2(0.9f, 0.15f);
+        endTurnRect.anchorMin = new Vector2(0.7f, 0.05f);
+        endTurnRect.anchorMax = new Vector2(0.95f, 0.15f);
         endTurnRect.sizeDelta = Vector2.zero;
         endTurnRect.anchoredPosition = Vector2.zero;
         
@@ -152,7 +166,7 @@ public class QuickChemistryUISetup : MonoBehaviour
         SimpleChemistryManager manager = FindObjectOfType<SimpleChemistryManager>();
         if (manager != null)
         {
-            SetupManagerReferences(manager, handPanel, compoundsPanel, createButton, endTurnButton, cheatButton,
+            SetupManagerReferences(manager, handPanel, compoundsPanel, createButton, discardButton, endTurnButton, cheatButton,
                                  statusObj, elementCountObj, compoundCountObj, cheatDisplay);
         }
         
@@ -369,7 +383,7 @@ public class QuickChemistryUISetup : MonoBehaviour
     }
     
     private void SetupManagerReferences(SimpleChemistryManager manager, GameObject handPanel, 
-                                      GameObject compoundsPanel, GameObject createButton, 
+                                      GameObject compoundsPanel, GameObject createButton, GameObject discardButton,
                                       GameObject endTurnButton, GameObject cheatButton, GameObject statusText,
                                       GameObject elementCountText, GameObject compoundCountText, GameObject cheatDisplay)
     {
@@ -381,6 +395,7 @@ public class QuickChemistryUISetup : MonoBehaviour
             if (field.Name == "playerHandParent") field.SetValue(manager, handPanel.transform);
             else if (field.Name == "playerCompoundsParent") field.SetValue(manager, compoundsPanel.transform);
             else if (field.Name == "createCompoundButton") field.SetValue(manager, createButton.GetComponent<Button>());
+            else if (field.Name == "discardButton") field.SetValue(manager, discardButton.GetComponent<Button>());
             else if (field.Name == "endTurnButton") field.SetValue(manager, endTurnButton.GetComponent<Button>());
             else if (field.Name == "cheatModeButton") field.SetValue(manager, cheatButton.GetComponent<Button>());
             else if (field.Name == "cheatModeDisplay") field.SetValue(manager, cheatDisplay);

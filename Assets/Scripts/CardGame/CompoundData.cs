@@ -27,7 +27,17 @@ public enum CompoundEffect
     SwapHands,             
     DiscardDraw,           
     ExchangeHands,         
-    ProtectFromReactions   
+    ProtectFromReactions,
+    H2O_ChangeElements,     
+    CO2_DestroyCompound,    
+    Acid_SkipTurn,          
+    Base_DiscardThree,      
+    Salt_TakeElements,      
+    Metallic_NegateDisso,   
+    MetalOxide_Protect,     
+    MetalHydride_Draw4,     
+    Hydrocarbon_DiscardDraw,
+    NetworkSolid_Protection 
 }
 
 [CreateAssetMenu(fileName = "CompoundData", menuName = "Chemistry Game/Compound Data")]
@@ -49,7 +59,11 @@ public class CompoundData : ScriptableObject
     [Header("Special Properties")]
     public bool isTemporary = false; 
     public bool protectsFromWaterReactions = false;
-    public bool isMetallicCompound = false; 
+    public bool isMetallicCompound = false;
+    public bool isMetalHydrideCompound = false;
+    public bool isHydrocarbonCompound = false;
+    public bool isNetworkSolidCompound = false;
+    public bool isMetalOxideCompound = false; 
     
     public override string ToString()
     {
@@ -111,5 +125,73 @@ public class CompoundData : ScriptableObject
         }
         
         return false;
+    }
+    
+    public bool CanCreateMetalHydrideFrom(List<ElementData> availableElements)
+    {
+        if (!isMetalHydrideCompound) return CanCreateFrom(availableElements);
+        
+        int metalCount = 0;
+        int hydrogenCount = 0;
+        
+        foreach (var element in availableElements)
+        {
+            if (element.IsMetal() && element.oxidationNumber > 0)
+                metalCount++;
+            else if (element.symbol == "H")
+                hydrogenCount++;
+        }
+        
+        return metalCount >= 1 && hydrogenCount >= 1;
+    }
+    
+    public bool CanCreateHydrocarbonFrom(List<ElementData> availableElements)
+    {
+        if (!isHydrocarbonCompound) return CanCreateFrom(availableElements);
+        
+        int carbonCount = 0;
+        int hydrogenCount = 0;
+        
+        foreach (var element in availableElements)
+        {
+            if (element.symbol == "C")
+                carbonCount++;
+            else if (element.symbol == "H")
+                hydrogenCount++;
+        }
+        
+        return carbonCount >= 1 && hydrogenCount >= 4;
+    }
+    
+    public bool CanCreateNetworkSolidFrom(List<ElementData> availableElements)
+    {
+        if (!isNetworkSolidCompound) return CanCreateFrom(availableElements);
+        
+        int carbonCount = 0;
+        foreach (var element in availableElements)
+        {
+            if (element.symbol == "C")
+                carbonCount++;
+        }
+        
+        return carbonCount >= 4;
+    }
+    
+    public bool CanCreateMetalOxideFrom(List<ElementData> availableElements)
+    {
+        if (!isMetalOxideCompound) return CanCreateFrom(availableElements);
+        
+        int metalCount = 0;
+        int oxygenCount = 0;
+        
+        foreach (var element in availableElements)
+        {
+            if (element.IsMetal() && element.oxidationNumber > 0)
+                metalCount++;
+            else if (element.symbol == "O")
+                oxygenCount++;
+        }
+        
+        return metalCount >= 1 && oxygenCount >= 1;
     }
 }

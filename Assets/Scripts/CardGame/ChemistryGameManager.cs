@@ -20,6 +20,7 @@ public class ChemistryGameManager : MonoBehaviour
     [SerializeField] private GameObject compoundCardPrefab;
     [SerializeField] private Button createCompoundButton;
     [SerializeField] private Button performReactionButton;
+    [SerializeField] private Button discardButton;
     [SerializeField] private Button endTurnButton;
     [SerializeField] private Text gameStatusText;
     [SerializeField] private Text playerElementCountText;
@@ -43,6 +44,7 @@ public class ChemistryGameManager : MonoBehaviour
     private bool gameEnded = false;
     private int reactionsPerformedThisTurn = 0;
     private int reactionLimit = int.MaxValue;
+    private bool hasDiscardedThisTurn = false;
     
     
     private NetGameManager networkManager;
@@ -75,11 +77,13 @@ public class ChemistryGameManager : MonoBehaviour
     {
         createCompoundButton.onClick.AddListener(TryCreateCompound);
         performReactionButton.onClick.AddListener(TryPerformReaction);
+        discardButton.onClick.AddListener(TryDiscardElements);
         endTurnButton.onClick.AddListener(EndTurn);
         
         
         createCompoundButton.interactable = false;
         performReactionButton.interactable = false;
+        discardButton.interactable = false;
     }
     
     private void DealElementToPlayer(bool isPlayer)
@@ -167,6 +171,7 @@ public class ChemistryGameManager : MonoBehaviour
         {
             createCompoundButton.interactable = false;
             performReactionButton.interactable = false;
+            discardButton.interactable = false;
             return;
         }
         
@@ -176,6 +181,9 @@ public class ChemistryGameManager : MonoBehaviour
         
         performReactionButton.interactable = CanPerformAnyReaction() && 
                                            reactionsPerformedThisTurn < reactionLimit;
+        
+        
+        discardButton.interactable = !hasDiscardedThisTurn && selectedElementCards.Count > 0;
     }
     
     private bool CanCreateAnyCompound()
@@ -269,6 +277,43 @@ public class ChemistryGameManager : MonoBehaviour
         CheckWinCondition();
         
         UpdateGameStatus($"Created {compound.formula}!");
+    }
+    
+    private void TryDiscardElements()
+    {
+        if (!isPlayerTurn || hasDiscardedThisTurn || selectedElementCards.Count == 0) return;
+        
+        int discardCount = selectedElementCards.Count;
+        List<ElementData> selectedElements = selectedElementCards.Select(c => c.Data).ToList();
+        
+        
+        foreach (var element in selectedElements)
+        {
+            playerHand.Remove(element);
+        }
+        
+        
+        for (int i = 0; i < discardCount; i++)
+        {
+            if (playerHand.Count < handLimit)
+            {
+                DealElementToPlayer(true);
+            }
+        }
+        
+        
+        hasDiscardedThisTurn = true;
+        
+        
+        ClearSelections();
+        
+        
+        UpdateUI();
+        
+        UpdateGameStatus($"Discarded {discardCount} elements and drew {discardCount} new ones!");
+        
+        
+        EndTurn();
     }
     
     private void TryPerformReaction()
@@ -384,6 +429,7 @@ public class ChemistryGameManager : MonoBehaviour
         
         reactionsPerformedThisTurn = 0;
         reactionLimit = int.MaxValue;
+        hasDiscardedThisTurn = false;
         
         
         foreach (Transform child in playerCompoundsParent)
